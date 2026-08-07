@@ -1,0 +1,42 @@
+[template]
+cargo_generate_version = ">=0.9.0"
+
+includes = [
+  ".github/workflows/cargo-publish.yml",
+]
+
+exclude = [
+  ".github/workflows/*.yml",
+  "*/.DS_STORE"
+]
+
+[placeholders.description]
+prompt = "A short description of the project"
+type = "string"
+
+[placeholders.alias]
+default = "alias"
+description = "The alias (username} for the code repository"
+prompt = "Please provide the handle for the registry; github.com/{alias}/{project_name}"
+type = "string"
+
+[placeholders.edition]
+choices = ["2015", "2018", "2021", "2024"]
+default = "2024"
+prompt = "Which edition of Rust to use?"
+type = "string"
+
+[placeholders.license]
+choices = ["Apache-2.0", "MIT", "Unrestricted"]
+default = "Apache-2.0"
+prompt = "What license to use?"
+type = "string"
+
+[placeholders.provider]
+choices = ["bitbucket.org", "github.com", "gitlab.com"]
+default = "github.com"
+description = "The path to the desired git"
+prompt = "Optionally, provide the path to the desired git"
+type = "string"
+
+[conditional.'crate_type == "lib"']

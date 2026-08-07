@@ -1,0 +1,129 @@
+[package]
+build = "build.rs"
+name = "{{ project-name }}"
+
+authors.workspace = true
+categories.workspace = true
+description.workspace = true
+edition.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+license.workspace = true
+readme.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+version.workspace = true
+
+[lib]
+path = "lib.rs"
+
+[package.metadata.docs.rs]
+all-features = false
+features = ["full"]
+rustc-args = ["--cfg", "docsrs"]
+version = "v{{version}}"
+
+[package.metadata.release]
+no-dev-version = true
+tag-name = "v{{version}}"
+
+[dependencies]
+{{ project-name }}-core = { default-features = false, workspace = true }
+
+[dev-dependencies]
+criterion = { features = ["plotters"], workspace = true }
+lazy_static = { workspace = true }
+
+[features]
+default = [
+  "std",
+]
+
+full = [
+  "default",
+  "hashbrown",
+  "json",
+  "time",
+]
+
+# ********* [FF] Flags *********
+
+time = [
+  "std",
+  "chrono",
+  "time_03",
+  "{{ project-name }}-core/time",
+]
+
+# ********* [FF] Targets *********
+nightly = [
+  "{{ project-name }}-core/nightly",
+]
+
+wasi = [
+  "{{ project-name }}-core/wasi",
+]
+
+wasm = [
+  "alloc",
+  "wasm_bindgen",
+  "{{ project-name }}-core/wasm",
+]
+
+# ********* [FF] Standard Library *********
+alloc = [
+  "{{ project-name }}-core/alloc",
+]
+
+std = [
+  "alloc",
+  "{{ project-name }}-core/std",
+]
+
+# ********* [FF] Deps *********
+chrono = [
+  "{{ project-name }}-core/chrono",
+]
+
+json = [
+  "{{ project-name }}-core/json",
+]
+
+rayon = [
+  "{{ project-name }}-core/rayon",
+]
+
+serde = [
+  "{{ project-name }}-core/serde",
+]
+
+serde_json = [
+  "{{ project-name }}-core/serde_json",
+]
+
+time_03 = [
+  "{{ project-name }}-core/time_03",
+]
+
+tracing = [
+  "{{ project-name }}-core/tracing",
+]
+
+wasm_bindgen = [
+  "{{ project-name }}-core/wasm_bindgen",
+]
+
+witbind = [
+  "{{ project-name }}-core/witbind",
+]
+
+# ************* [Benchmarks] *************
+[[bench]]
+harness = false
+name = "default"
+required-features = ["std"]
+
+# ************* [Unit Tests] *************
+[[test]]
+name = "default"
+required-features = []
