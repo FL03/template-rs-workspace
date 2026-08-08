@@ -33,9 +33,12 @@ tag-name = "v{{version}}"
 
 [dependencies]
 # error-handling
+anyhow = { workspace = true }
 thiserror = { workspace = true }
 # hashbrown
 hashbrown = { optional = true, workspace = true }
+# parallelism
+rayon = { optional = true, workspace = true }
 # serialization
 serde = { optional = true, workspace = true }
 serde_derive = { optional = true, workspace = true }
@@ -47,6 +50,8 @@ strum = { optional = true, workspace = true }
 # time
 chrono = { optional = true, workspace = true }
 time = { optional = true, workspace = true }
+# tracing
+tracing = { optional = true, workspace = true }
 # WebAssembly
 wasm-bindgen = { optional = true, workspace = true }
 wit-bindgen = { optional = true, workspace = true }
