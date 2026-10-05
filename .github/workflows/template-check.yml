@@ -1,31 +1,20 @@
-name: cargo-clippy
-
-concurrency:
-  cancel-in-progress: false
-  group: ${{ github.workflow }}-${{ github.ref }}
+name: template-check
 
 on:
-  push:
-    tags:
-      - latest
-      - v[0-9]*
-      - v[0-9]*.[0-9]*.[0-9]*
-  repository_dispatch:
-    types: [clippy, cargo-clippy]
-  workflow_dispatch:
-    inputs:
-      runner:
-        default: self-hosted
-        description: What type of runner should the action leverage?
-        type: choice
-        options: [macos-latest, ubuntu-latest, windows-latest, self-hosted]
+  pull_request:
+    branches: [main, master, 'v[0-9]*.[0-9]*.[0-9]*']
+    types: [opened, reopened, synchronize]
 
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 jobs:
   generated-projects:
-    runs-on: ${{ inputs.runner || 'ubuntu-latest' }}
+    runs-on: ubuntu-latest
     defaults:
       run:
         shell: bash
@@ -37,7 +26,6 @@ jobs:
         uses: actions/checkout@v7
         with:
           persist-credentials: false
-          ref: ${{ github.event.client_payload.ref || github.ref }}
       - name: Setup Python
         uses: actions/setup-python@v6
         with:
@@ -55,4 +43,4 @@ jobs:
       - name: Validate generated projects
         env:
           RUSTUP_TOOLCHAIN: stable
-        run: python scripts/test-generation.py --mode clippy --output "$RUNNER_TEMP/template-check"
+        run: python scripts/test-generation.py --mode all --output "$RUNNER_TEMP/template-check"

@@ -92,19 +92,32 @@ Use Cargo's default profiles or define a needed profile once at the root.
 
 ## Validate template changes
 
-From a checkout of this template, Python 3.11+ runs the local generation contract:
+From the template checkout (Python 3.11+, stable Rust with rustfmt/clippy, and
+cargo-generate 0.23.8):
 
 ```sh
-python3 scripts/test-generation.py
+python3 scripts/test-ci-policy.py
+python3 scripts/test-generation.py --mode all
+python3 scripts/test-generation.py --mode generate
 python3 scripts/test-generation.py \
   --base ../template-rs --cli ../template-rs-cli --mcp ../template-rs-mcp
 ```
 
-The optional second command checks real member inheritance, an unchanged root
-manifest, and absence of nested workspaces. This script runs generation, format,
-and metadata checks without compilation; run the Cargo commands above against
-the generated output for compile, lint, and runtime validation. No hosted
-workflows are dispatched.
+The validator generates real root/starter fixtures, checks inherited metadata and
+unchanged parent manifests, then `all` compiles/tests the workspace, checks the
+underscore name, and runs Clippy. The last command optionally checks all three
+local member templates without compilation or fetching remote repositories.
+Separate `build`, `test`, `clippy`, and `bench` modes back legacy workflows; `bench`
+only compiles the benchmark harness with `--no-run` because there are no dedicated
+benchmarks. `scripts/cargo.sh` forwards the same options. `--output DIR` selects a
+fresh directory; otherwise fixtures and `results.json` stay in a printed temporary
+path. `CARGO_NET_OFFLINE=true` and `CARGO_TARGET_DIR` are inherited when supplied.
+
+`template-check.yml` is the sole Cargo PR check for opened, reopened, or synchronized
+PRs targeting `main`, `master`, or version branches. It has no push trigger. Legacy
+checks retain tag, manual, and repository-dispatch events, including their existing
+manual runner, toolchain, and target choices. No hosted workflows are dispatched
+by these local commands.
 
 See [QUICKSTART.md](QUICKSTART.md) for a local checkout workflow. The contract
 follows the official [Cargo workspace reference](https://doc.rust-lang.org/cargo/reference/workspaces.html),

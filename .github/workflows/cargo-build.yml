@@ -5,13 +5,6 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
 
 on:
-  pull_request:
-    branches: [ main, master ]
-    types: [ synchronize ]
-    paths:
-      - "**/*.rs"
-      - "**/Cargo.toml"
-      - "**/Cargo.lock"
   push:
     tags:
       - latest
@@ -37,120 +30,41 @@ on:
         type: choice
         options: [stable, nightly]
 
+permissions:
+  contents: read
+
 jobs:
-  workspace:
-    name: Build the workspace
-    runs-on: ${{ github.event.inputs.runner || 'ubuntu-latest' }}
-    env:
-      CACHE_ON_FAILURE: true
-      CARGO_TERM_COLOR: always
-      CARGO_INCREMENTAL: 0
-      RUST_BACKTRACE: full
-      RUSTC_WRAPPER: sccache
-      SCCACHE_GHA_ENABLED: true
+  generated-projects:
+    runs-on: ${{ inputs.runner || 'ubuntu-latest' }}
+    defaults:
+      run:
+        shell: bash
+    timeout-minutes: 30
     permissions:
-      actions: write
       contents: read
-    strategy:
-      fail-fast: false
-      matrix:
-        features: [full, default]
-        include:
-          - target: ${{ github.event.inputs.target || 'x86_64-unknown-linux-gnu' }}
-            toolchain: ${{ github.event.inputs.toolchain || 'stable' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
         with:
-          fetch-depth: 1
-          fetch-tags: true
-          ref: ${{ github.event.client_payload.ref  || github.ref }}
-          repository: ${{ github.repository }}
-          token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Prepare the workflow
-        run: |
-          if [[ "${{ matrix.toolchain }}" == "nightly" ]]; then
-            echo "RUSTFLAGS=-C panic=abort -Z panic_abort_tests" >> $GITHUB_ENV
-          fi
-      - name: Setup sccache
-        uses: mozilla-actions/sccache-action@v0.0.10
-      - name: Setup rust-cache
-        uses: swatinem/rust-cache@v2
+          persist-credentials: false
+          ref: ${{ github.event.client_payload.ref || github.ref }}
+      - name: Setup Python
+        uses: actions/setup-python@v6
         with:
-          key: cargo-${{ matrix.toolchain }}-${{ matrix.target }}-${{ matrix.features }}
-          cache-targets: false
+          python-version: '3.11'
       - name: Setup Rust
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
+          toolchain: ${{ inputs.toolchain || 'stable' }}
+          components: rustfmt, clippy
           cache: false
-          target: ${{ matrix.target }}
-          toolchain: ${{ matrix.toolchain }}
-          override: true
-      - name: cargo build (${{ matrix.features }})
-        run: |
-          cargo build --release --lib --locked --workspace \
-            --features ${{ matrix.features }} \
-            --target ${{ matrix.target }}
-  # bin:
-  #   name: Build (bins)
-  #   runs-on: ${{ github.event.inputs.runner || 'ubuntu-latest' }}
-  #   env:
-  #     CACHE_ON_FAILURE: true
-  #     CARGO_TERM_COLOR: always
-  #     CARGO_INCREMENTAL: 0
-  #     RUST_BACKTRACE: full
-  #     RUSTC_WRAPPER: sccache
-  #     SCCACHE_GHA_ENABLED: true
-  #     RUST_TARGET: ${{ github.event.inputs.target || 'x86_64-unknown-linux-gnu' }}
-  #     RUST_TOOLCHAIN: ${{ github.event.inputs.toolchain || 'stable' }}
-  #   permissions:
-  #     actions: write
-  #     contents: read
-  #   strategy:
-  #     fail-fast: false
-  #     matrix:
-  #       package: [axiom-gateway, axiom-mcp, axiom-node, axiom-worker]
-  #       include:
-  #         - features: full
-  #           target: ${{ github.env.RUST_TARGET }}
-  #           toolchain: ${{ github.event.inputs.toolchain || 'stable' }}
-  #   steps:
-  #     - name: Checkout
-  #       uses: actions/checkout@v7
-  #       with:
-  #         fetch-depth: 1
-  #         fetch-tags: true
-  #         ref: ${{ github.event.client_payload.ref  || github.ref }}
-  #         repository: ${{ github.repository }}
-  #         token: ${{ secrets.GITHUB_TOKEN }}
-  #     - name: Prepare the workflow
-  #       run: |
-  #         if [[ "${{ matrix.toolchain }}" == "nightly" ]]; then
-  #           echo "RUSTFLAGS=-C panic=abort -Z panic_abort_tests" >> $GITHUB_ENV
-  #         fi
-  #     - name: Setup sccache
-  #       uses: mozilla-actions/sccache-action@v0.0.10
-  #     - name: Setup rust-cache
-  #       uses: swatinem/rust-cache@v2
-  #       with:
-  #         key: cargo-${{ matrix.toolchain }}-${{ matrix.target }}-${{ matrix.features }}
-  #         cache-targets: false
-  #     - name: Setup Rust
-  #       uses: actions-rust-lang/setup-rust-toolchain@v1
-  #       with:
-  #         cache: false
-  #         target: ${{ matrix.target }}
-  #         toolchain: ${{ matrix.toolchain }}
-  #         override: true
-  #     - name: cargo build ${{ matrix.package }} [${{ matrix.features }}]
-  #       run: |
-  #         cargo build --bins --locked --release --verbose \
-  #           --package ${{ matrix.package }} \
-  #           --features ${{ matrix.features }} \
-  #           --target ${{ matrix.target }}
-  #     - name: Upload artifact
-  #       uses: actions/upload-artifact@v7
-  #       with:
-  #         name: "${{ matrix.package }}@${{ github.sha }}"
-  #         path: target/${{ matrix.target }}/release/${{ matrix.package }}
-  #         if-no-files-found: error
+          target: ${{ inputs.target || 'x86_64-unknown-linux-gnu' }}
+      - name: Install cargo-generate
+        run: cargo install cargo-generate --version 0.23.8 --locked
+      - name: Check CI policy
+        run: python scripts/test-ci-policy.py
+      - name: Validate generated projects
+        env:
+          RUSTUP_TOOLCHAIN: ${{ inputs.toolchain || 'stable' }}
+          CARGO_BUILD_TARGET: ${{ inputs.target || 'x86_64-unknown-linux-gnu' }}
+        run: python scripts/test-generation.py --mode build --output "$RUNNER_TEMP/template-check"

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Exercise real cargo-generate outputs without running a Rust compilation."""
+"""Validate real generated workspaces; retain fixtures and exact command results."""
 
 import argparse
 import hashlib
@@ -7,6 +7,7 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import shlex
 import tempfile
 import tomllib
 
@@ -15,14 +16,53 @@ def read_manifest(path):
     return tomllib.loads(path.read_text())
 
 
+def cargo_commands(output, mode):
+    """Select checks for the dependency-free starter in generated workspace roots."""
+    commands = []
+    root = output / "workspace-contract" / "Cargo.toml"
+    alternate = output / "workspace_contract" / "Cargo.toml"
+    if mode in ("all", "build", "test"):
+        verb = "build" if mode == "build" else "test"
+        commands.append(["cargo", verb, "--manifest-path", root, "--workspace"])
+        commands.append(["cargo", "check" if mode == "all" else verb,
+                         "--manifest-path", alternate, "--workspace"])
+    if mode in ("all", "clippy"):
+        commands.append(["cargo", "clippy", "--manifest-path", root,
+                         "--workspace", "--all-targets", "--", "-D", "warnings"])
+    if mode == "bench":
+        # No dedicated benchmarks exist; compile the benchmark harness only.
+        commands.append(["cargo", "bench", "--manifest-path", root, "--workspace", "--no-run"])
+    return commands
+
+
+def run_cargo_checks(output, mode, run):
+    """Require generated, parseable manifests before starting any compilation."""
+    commands = cargo_commands(output, mode)
+    for command in commands:
+        manifest = Path(command[command.index("--manifest-path") + 1])
+        if not manifest.resolve().is_relative_to(output.resolve()):
+            raise ValueError(f"Cargo target is outside generated fixtures: {manifest}")
+        content = manifest.read_text()
+        if "{{" in content or "{%" in content:
+            raise ValueError(f"Cargo target contains unexpanded template syntax: {manifest}")
+        tomllib.loads(content)
+    for command in commands:
+        run(command)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--template", type=Path, default=Path(__file__).resolve().parents[1])
     parser.add_argument("--base", type=Path)
     parser.add_argument("--cli", type=Path)
     parser.add_argument("--mcp", type=Path)
-    parser.add_argument("--output", type=Path)
+    parser.add_argument("--output", "--workdir", type=Path, help="fresh fixture directory (retained)")
+    parser.add_argument("--mode", choices=("all", "build", "test", "clippy", "bench", "generate"),
+                        default="generate", help="generated-project check (default: generate)")
+    parser.add_argument("--generate-only", action="store_true", help="alias for --mode generate")
     args = parser.parse_args()
+    if args.generate_only:
+        args.mode = "generate"
     if any((args.base, args.cli, args.mcp)) and not all((args.base, args.cli, args.mcp)):
         parser.error("--base, --cli, and --mcp must be provided together")
     if args.output:
@@ -35,9 +75,10 @@ def main():
     print(f"Evidence and generated projects: {output}", flush=True)
 
     def run(command, *, cwd=output, env=None, succeeds=True):
+        print(f"$ {shlex.join([str(value) for value in command])}", flush=True)
         result = subprocess.run(
             [str(value) for value in command], cwd=cwd, env=env,
-            capture_output=True, text=True, timeout=60,
+            capture_output=True, text=True, timeout=600,
         )
         commands.append({
             "command": [str(value) for value in command], "cwd": str(cwd),
@@ -79,7 +120,18 @@ def main():
             assert root["workspace"]["package"]["rust-version"] == "1.96.0"
             assert root["workspace"]["lints"]["rust"]["unsafe_code"] == "forbid"
             assert root["workspace"]["dependencies"]["thiserror"]["default-features"] is False
+            starter = read_manifest(project / "crates/starter/Cargo.toml")
+            assert "workspace" not in starter and "profile" not in starter
+            assert starter["lints"] == {"workspace": True}
+            for field in ("authors", "description", "edition", "license", "repository",
+                          "rust-version", "version"):
+                assert starter["package"][field] == {"workspace": True}, field
+            parent_before = hashlib.sha256((project / "Cargo.toml").read_bytes()).hexdigest()
             info = metadata(project)
+            inherited = info["packages"][0]
+            for field in ("authors", "description", "edition", "license", "repository", "version"):
+                assert inherited[field] == root["workspace"]["package"][field], field
+            assert inherited["rust_version"] == root["workspace"]["package"]["rust-version"]
             assert [package["name"] for package in info["packages"]] == [f"{name}-starter"]
             assert len(info["workspace_members"]) == 1
             assert not info["packages"][0]["dependencies"]
@@ -93,6 +145,7 @@ def main():
                     assert "{{" not in text and "{%" not in text, path
                     assert "axiom" not in text.lower(), path
             run(["cargo", "fmt", "--all", "--", "--check"], cwd=project)
+            assert hashlib.sha256((project / "Cargo.toml").read_bytes()).hexdigest() == parent_before
 
         # These values used to silently generate malformed TOML.
         for index, value in enumerate(('Quoted "description"', "back\\slash", "two\nlines")):
@@ -147,6 +200,11 @@ def main():
                 "cargo", "metadata", "--no-deps", "--offline", "--format-version", "1",
             ], cwd=output / "orphan-member", succeeds=False)
             assert "workspace" in result.stderr
+
+        root_manifest = output / "workspace-contract" / "Cargo.toml"
+        parent_before = hashlib.sha256(root_manifest.read_bytes()).hexdigest()
+        run_cargo_checks(output, args.mode, run)
+        assert hashlib.sha256(root_manifest.read_bytes()).hexdigest() == parent_before
 
         status = "passed"
         print(f"PASS: {len(commands)} commands; generation contract verified", flush=True)
