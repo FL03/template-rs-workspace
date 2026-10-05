@@ -1,5 +1,4 @@
-#! /bin/bash
+#!/usr/bin/env bash
+# Legacy entry point: test a freshly generated workspace.
 set -euo pipefail
-cd "$(dirname "$0")/.."
-
-cargo nextest run --locked --no-fail-fast "$@"
+exec python3 "$(dirname "$0")/test-generation.py" --mode test "$@"

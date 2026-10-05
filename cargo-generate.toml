@@ -1,42 +1,24 @@
 [template]
-cargo_generate_version = ">=0.9.0"
-
-includes = [
-  ".github/workflows/cargo-publish.yml",
+cargo_generate_version = ">=0.23.8"
+ignore = [
+  ".agents", ".artifacts", ".claude", ".codex", ".devcontainer", ".github",
+  ".shepherd", ".vscode", ".env.example", ".envrc", ".DS_Store",
+  "AGENTS.md", "CLAUDE.md", "CHANGELOG.md", "CODEOWNERS", "CODE_OF_CONDUCT.md",
+  "CONTRIBUTING.md", "SECURITY.md", "Cargo.lock", "clippy.toml", "default.nix",
+  "flake.nix", "flake.lock", "shell.nix", "scripts", "hooks", "target",
 ]
 
-exclude = [
-  ".github/workflows/*.yml",
-  "*/.DS_STORE"
-]
-
-[placeholders.description]
-prompt = "A short description of the project"
-type = "string"
+[hooks]
+pre = ["hooks/validate.rhai"]
 
 [placeholders.alias]
-default = "alias"
-description = "The alias (username} for the code repository"
-prompt = "Please provide the handle for the registry; github.com/{alias}/{project_name}"
+default = "FL03"
+prompt = "GitHub owner for the generated repository"
+regex = '^[A-Za-z0-9][A-Za-z0-9-]*$'
 type = "string"
 
-[placeholders.edition]
-choices = ["2015", "2018", "2021", "2024"]
-default = "2024"
-prompt = "Which edition of Rust to use?"
+[placeholders.description]
+default = "A composable Rust workspace"
+prompt = "A short, single-line description (no quotes or backslashes)"
+regex = '^[^"\\\x00-\x1F\x7F]*$'
 type = "string"
-
-[placeholders.license]
-choices = ["Apache-2.0", "MIT", "Unrestricted"]
-default = "Apache-2.0"
-prompt = "What license to use?"
-type = "string"
-
-[placeholders.provider]
-choices = ["bitbucket.org", "github.com", "gitlab.com"]
-default = "github.com"
-description = "The path to the desired git"
-prompt = "Optionally, provide the path to the desired git"
-type = "string"
-
-[conditional.'crate_type == "lib"']
