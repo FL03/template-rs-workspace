@@ -1,102 +1,54 @@
----
-title: Quickstart
-description: A quickstart guide to set up the environment and build the pzzld project from source.
----
+# Local workspace quickstart
 
-Welcome to the quickstart guide for `pzzld`, a novel topological computing engine inspired by the neo-Riemannian theory of music. This guide will help you set up your environment and build the project from source.
+Use Rust 1.96.0+, cargo-generate 0.23.8+, and sibling checkouts of the existing
+FL03 repositories. These commands use local template files, so they also test
+changes before publishing them.
 
-## Table of Contents
+```sh
+git clone https://github.com/FL03/template-rs-workspace
+git clone https://github.com/FL03/template-rs
+git clone https://github.com/FL03/template-rs-cli
+git clone https://github.com/FL03/template-rs-mcp
 
-- [Prerequisites](#prerequisites)
-  - [Setup Rust](#setup-rust)
-- [Getting Started](#getting-started)
-  - [Build and Test](#build-and-test)
+cargo generate --path ./template-rs-workspace --name demo-workspace \
+  --silent --vcs none --no-workspace
+cargo generate --path ./template-rs --name demo-lib \
+  --destination ./demo-workspace/crates --silent --vcs none --no-workspace \
+  -d workspace-member=true
+cargo generate --path ./template-rs-cli --name demo-cli \
+  --destination ./demo-workspace/crates --silent --vcs none --no-workspace \
+  -d workspace-member=true
+cargo generate --path ./template-rs-mcp --name demo-mcp \
+  --destination ./demo-workspace/crates --silent --vcs none --no-workspace \
+  -d workspace-member=true
 
-## Prerequisites
-
-Before you begin, ensure you have the following prerequisites installed on your system:
-
-- [Git](https://git-scm.com/) - For cloning the repository.
-- [Rust](https://www.rust-lang.org/) (version 1.88 or later)
-  - Includes `cargo`, Rust's package manager and build tool.
-
-Optionally, you may also want to install the following tools:
-
-- [cargo-binstall](https://github.com/cargo-bins/cargo-binstall) - A utility designed to streamline the installation of Rust binaries.
-- [cargo-criterion](https://bheisler.github.io/criterion.rs/book/cargo_criterion/cargo_criterion.html) - A benchmarking tool for Rust projects.
-
-### Setup Rust
-
-Ensure you have the latest version of Rust installed. You can install Rust using [rustup](https://rustup.rs/).
-
-```bash
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+cd demo-workspace
+cargo metadata --no-deps --format-version 1
+cargo fmt --all -- --check
+cargo check --workspace --all-features
+cargo clippy --workspace --all-targets --all-features -- -D warnings
+cargo test --workspace --all-features
+cargo run -p demo-cli -- --help
 ```
 
-After installation, I always recommend ensuring that rustup is updated to the latest version:
+There should be four workspace members: the starter library plus the three
+generated packages. All share one root lockfile, target directory, and dependency
+version catalogue. The root `Cargo.toml` stays unchanged when adding members.
+Do not generate member mode into a directory outside this workspace.
 
-```bash
-rustup update
+For a standalone package, omit `-d workspace-member=true` and choose a destination
+outside the workspace. The library, CLI, and MCP templates each generate one
+package without creating their own workspace.
+
+The local generator contract can retain its output for further validation:
+
+```sh
+python3 template-rs-workspace/scripts/test-generation.py \
+  --base template-rs --cli template-rs-cli --mcp template-rs-mcp \
+  --output /tmp/template-workspace-check
 ```
 
-And to add the latest nightly toolchain, which is often useful for development:
-
-```bash
-rustup toolchain install nightly
-```
-
-#### *Adding additional targets*
-
-Add the necessary `wasm32-*` targets for WebAssembly:
-
-```bash
-rustup target add wasm32-unknown-unknown wasm32-wasip1 wasm32-wasip2
-```
-
-#### *Optional: Installing cargo-binstall*
-
-If you want to use `cargo-binstall` for easier installation of Rust binaries, you can install it with the following command:
-
-```bash
-curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
-```
-
-or install it via `cargo`:
-
-```bash
-cargo install cargo-binstall
-```
-
-## Getting Started
-
-Start by cloning the repository:
-
-```bash
-git clone git@github.com:FL03/pzzld --depth 1 --branch main
-```
-
-Then, navigate to the project directory:
-
-```bash
-cd pzzld
-```
-
-### Build and Test
-
-Once you're in the project directory, you can build the project using `cargo`:
-
-```bash
-cargo build --workspace --release --all-features
-```
-
-Then, if you want, run the tests by:
-
-```bash
-cargo test --workspace --release --features full
-```
-
-or benchmark the project with:
-
-```bash
-cargo bench --workspace --release --verbose --features full --
-```
+`--output` must identify a new directory. Inspect its `results.json` for exact
+commands and exit statuses, then compile the composed `workspace-contract`
+directory using the commands above. Keep heavy Cargo builds sequentially so they
+reuse caches without competing for resources.
