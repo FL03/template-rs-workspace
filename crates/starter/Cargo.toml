@@ -2,13 +2,33 @@
 name = "{{ project-name }}-starter"
 description.workspace = true
 authors.workspace = true
+categories.workspace = true
+documentation.workspace = true
 edition.workspace = true
+homepage.workspace = true
+keywords.workspace = true
 license.workspace = true
+readme.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 version.workspace = true
-readme = "README.md"
 publish = false
+
+[package.metadata.docs.rs]
+all-features = false
+features = ["default"]
 
 [lints]
 workspace = true
+
+[lib]
+bench = false
+
+[features]
+default = ["std"]
+full = ["std"]
+alloc = []
+std = ["alloc"]
+nightly = []
+wasm = ["std"]
+wasi = ["std"]

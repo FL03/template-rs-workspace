@@ -1,18 +1,39 @@
 [workspace]
-members = ["crates/*"]
+default-members = ["crates/starter", "bin/cli"]
+members = [
+  "bin/*",
+  "cmp/*",
+  "crates/*",
+{% if with_clients %}
+  "clients/*",
+{% endif %}
+]
+exclude = ["packages/*"]
 resolver = "3"
 
 [workspace.package]
 authors = ["{{ authors }}"]
+categories = []
 description = "{{ description }}"
+documentation = "https://github.com/{{ alias }}/{{ project-name }}#readme"
 edition = "2024"
+homepage = "https://github.com/{{ alias }}/{{ project-name }}"
+keywords = ["rust", "workspace"]
 license = "Apache-2.0"
-repository = "https://github.com/{{ alias }}/{{ project-name }}"
-rust-version = "1.96.0"
+publish = true
+readme = "README.md"
+repository = "https://github.com/{{ alias }}/{{ project-name }}.git"
+rust-version = "1.99.1"
 version = "0.0.0"
 
-# Versions live here; member packages select their own capabilities.
+[workspace.metadata.release]
+shared-version = true
+tag-prefix = ""
+tag-name = "{% raw %}v{{version}}{% endraw %}"
+
+# Versions and default-feature policy live here; members select capabilities.
 [workspace.dependencies]
+starter = { package = "{{ project-name }}-starter", path = "crates/starter", version = "0.0.0", default-features = false }
 anyhow = "1"
 clap = "4"
 rmcp = { version = "2.2", default-features = false }
@@ -21,6 +42,7 @@ serde_json = { version = "1", default-features = false }
 thiserror = { version = "2", default-features = false }
 tokio = { version = "1", default-features = false }
 tracing-subscriber = { version = "0.3", default-features = false }
+wasm-bindgen = { version = "0.2", default-features = false }
 
 [workspace.lints.rust]
 missing_docs = "warn"
@@ -28,3 +50,40 @@ unsafe_code = "forbid"
 
 [workspace.lints.clippy]
 all = { level = "warn", priority = -1 }
+
+[profile.dev]
+codegen-units = 256
+debug = true
+debug-assertions = true
+incremental = true
+lto = false
+opt-level = 0
+overflow-checks = true
+panic = "unwind"
+rpath = false
+strip = false
+
+[profile.release]
+codegen-units = 16
+debug = false
+debug-assertions = false
+incremental = false
+lto = "thin"
+opt-level = 3
+overflow-checks = false
+panic = "unwind"
+rpath = false
+strip = "debuginfo"
+
+# Keep symbols required by wasm-bindgen postprocessing.
+[profile.wasm-dev]
+inherits = "dev"
+opt-level = 1
+panic = "abort"
+strip = "debuginfo"
+
+[profile.wasm-release]
+inherits = "release"
+opt-level = "z"
+panic = "abort"
+strip = "debuginfo"

@@ -1,0 +1,34 @@
+[package]
+name = "{{ project-name }}-client"
+description = "Optional client library for {{ project-name }}"
+authors.workspace = true
+categories.workspace = true
+documentation.workspace = true
+edition.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+license.workspace = true
+readme.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+version.workspace = true
+publish = false
+
+[package.metadata.docs.rs]
+all-features = false
+features = ["default"]
+
+[lints]
+workspace = true
+
+[dependencies]
+starter = { workspace = true }
+
+[features]
+default = ["std"]
+full = ["std", "starter/full"]
+alloc = ["starter/alloc"]
+std = ["alloc", "starter/std"]
+nightly = ["starter/nightly"]
+wasm = ["std", "starter/wasm"]
+wasi = ["std", "starter/wasi"]

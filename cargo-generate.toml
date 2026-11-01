@@ -1,7 +1,7 @@
 [template]
 cargo_generate_version = ">=0.23.8"
 ignore = [
-  ".agents", ".artifacts", ".claude", ".codex", ".devcontainer", ".github",
+  ".git", ".agents", ".artifacts", ".claude", ".codex", ".devcontainer", ".github",
   ".shepherd", ".vscode", ".env.example", ".envrc", ".DS_Store",
   "AGENTS.md", "CLAUDE.md", "CHANGELOG.md", "CODEOWNERS", "CODE_OF_CONDUCT.md",
   "CONTRIBUTING.md", "SECURITY.md", "Cargo.lock", "clippy.toml", "default.nix",
@@ -22,3 +22,19 @@ default = "A composable Rust workspace"
 prompt = "A short, single-line description (no quotes or backslashes)"
 regex = '^[^"\\\x00-\x1F\x7F]*$'
 type = "string"
+
+[placeholders.with_clients]
+default = false
+prompt = "Include a workspace client library?"
+type = "bool"
+
+[placeholders.with_packages]
+default = false
+prompt = "Include a directory for JavaScript/Emscripten packages?"
+type = "bool"
+
+[conditional.'!with_clients']
+ignore = ["clients"]
+
+[conditional.'!with_packages']
+ignore = ["packages"]
